@@ -1,0 +1,45 @@
+name: Build & Publish apps/web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write   # necessário para criar o branch gh-pages
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js  (Node 20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build apps/web
+        working-directory: apps/web
+        run: pnpm run build
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apps/web/dist
+          publish_branch: gh-pages
+          # keep_files: true   # opcional: se quiser manter arquivos existentes no gh-pages
