@@ -4,6 +4,7 @@
     "composite": true,
     "outDir": "./dist",
     "rootDir": ".",
+    "jsx": "react-jsx",
     "types": ["vite"]
   },
   "include": ["src", "vite.config.ts"]

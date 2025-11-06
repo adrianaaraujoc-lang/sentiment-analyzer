@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     rootDir: .
-    buildCommand: pnpm install --frozen-lockfile && pnpm build --filter=web
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
     startCommand: echo "Static site"
     buildFilter:
       paths:
