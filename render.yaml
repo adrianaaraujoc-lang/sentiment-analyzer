@@ -5,17 +5,9 @@ services:
     region: oregon
     plan: free
     rootDir: .
-    buildCommand: pnpm install --frozen-lockfile && pnpm build
-    startCommand: echo "Static site"
+    buildCommand: pnpm install --frozen-lockfile
+    startCommand: pnpm build
     buildFilter:
-      paths:
-        - apps/web/**
-        - packages/**
-        - pnpm-lock.yaml
-        - pnpm-workspace.yaml
-        - tsconfig.json
-        - vite.config.ts
-        - .github/workflows/**
       ignoredPaths:
         - docs/**
         - README.md
