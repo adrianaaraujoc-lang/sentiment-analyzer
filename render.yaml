@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: sentiment-analyzer
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: pnpm install --frozen-lockfile && pnpm build --filter=web
+    startCommand: echo "Static site"
+    buildFilter:
+      paths:
+        - apps/web/**
+        - packages/**
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - tsconfig.json
+        - vite.config.ts
+        - .github/workflows/**
+      ignoredPaths:
+        - docs/**
+        - README.md
+        - .gitignore
+        - .env.example
+        - LICENSE
+        - .vscode/**
+        - node_modules/**
+        - "**/*.test.ts"
+        - "**/*.spec.ts"
+        - "**/*.test.tsx"
+        - "**/*.spec.tsx"
