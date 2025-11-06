@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # necessário para publicar no branch gh-pages
+  contents: write
 
 jobs:
   build-and-deploy:
@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js (Node 20)
         uses: actions/setup-node@v4
@@ -26,10 +28,23 @@ jobs:
         uses: pnpm/action-setup@v2
         with:
           version: 8
-          run_install: false   # deixa a gente rodar "pnpm install" manualmente
+          run_install: false
 
-      - name: Install dependencies (root)
-        run: pnpm install --frozen-lockfile
+      - name: Debug: show repo files (helpful if algo falhar)
+        run: |
+          echo "=== pwd ==="
+          pwd
+          echo "=== ls (root) ==="
+          ls -la
+          echo "=== ls apps/web ==="
+          ls -la apps/web || true
+
+      - name: Show pnpm version
+        run: pnpm --version
+
+      - name: Install dependencies (root) — allow generating lockfile in CI
+        # REMOVA --no-frozen-lockfile se você preferir commitar pnpm-lock.yaml
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build apps/web
         working-directory: apps/web
