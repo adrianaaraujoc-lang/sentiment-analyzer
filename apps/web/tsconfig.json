@@ -1,35 +1,25 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    /* Base configuration settings required for the React environment */
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-
-    /* Monorepo and Build Settings (incorporando suas sugestões) */
-    "composite": true,
-    "outDir": "dist",
-    "rootDir": ".", // Define o apps/web como a raiz do código.
-    
-    /* Vite/Bundler Mode (Essencial) */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-
     /* React/JSX Settings */
     "jsx": "react-jsx",
-    "types": ["vite", "react"], // Tipagem essencial
-
+    "types": [
+      "vite",
+      "react"
+    ],
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "vite.config.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": [
+    "src",
+    "vite.config.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }

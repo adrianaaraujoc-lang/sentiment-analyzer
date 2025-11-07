@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Monorepo para o Analisador de Sentimentos",
+  "packageManager": "npm@11.3.0",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
