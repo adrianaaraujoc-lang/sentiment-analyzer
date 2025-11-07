@@ -31,13 +31,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js (v$NODE_VERSION)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
-      # Cache pnpm store for speed
+      # Cache pnpm store for speed (optional; usa PNPM_STORE_PATH)
       - name: Cache pnpm store
         uses: actions/cache@v4
         with:
@@ -46,36 +46,72 @@ jobs:
           restore-keys: |
             pnpm-store-
 
-      # corepack first (ensure pnpm shim)
-      - name: Enable corepack and prepare pnpm
+      # 1) corepack: preferido
+      - name: Enable Corepack and prepare pnpm
         run: |
+          echo "Enabling corepack and preparing pnpm@${{ env.PNPM_VERSION }}..."
           corepack enable
-          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
-          echo "corepack prepared pnpm $(pnpm --version || echo 'pnpm-not-found')"
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate || true
+          echo "After corepack: which pnpm? -> $(command -v pnpm || echo 'not-found')"
+          echo "pnpm --version (if available):"
+          pnpm --version || echo "pnpm not available after corepack"
 
-      # pnpm action after corepack to ensure binary in PATH on all runners
-      - name: Setup pnpm action (ensures binary in PATH)
+      # 2) pnpm action (adds binary to PATH in many runners)
+      - name: Setup pnpm action (ensures pnpm binary in PATH)
         uses: pnpm/action-setup@v3
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
 
-      - name: Ensure PNPM on PATH (verify & fallback)
+      # 3) fallback: if pnpm still missing, install globally via npm
+      - name: Ensure pnpm exists, fallback to npm global install if necessary
         run: |
-          echo "Checking pnpm availability..."
           if command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm found: $(pnpm --version)"
+            echo "pnpm already on PATH: $(pnpm --version)"
           else
-            echo "pnpm not found — attempting to add common locations to PATH"
-            export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
-            export PATH="$PNPM_HOME:$PATH"
-            echo "PATH updated: $PATH"
-            command -v pnpm >/dev/null 2>&1 || (echo "pnpm still not found — failing" && exit 1)
-            echo "pnpm now: $(pnpm --version)"
+            echo "pnpm not found after corepack+action. Installing pnpm globally via npm..."
+            npm i -g pnpm@${{ env.PNPM_VERSION }}
+            # some runners install global binaries in /usr/local/bin or ~/.npm-global/bin
+            if command -v pnpm >/dev/null 2>&1; then
+              echo "pnpm installed by npm: $(pnpm --version) at $(command -v pnpm)"
+            else
+              echo "pnpm still not found after npm global install. Trying common locations..."
+              # common global bin locations to add to PATH
+              export POSSIBLE_BIN_DIRS="$HOME/.npm-global/bin $HOME/.local/bin /usr/local/bin /usr/bin"
+              for d in $POSSIBLE_BIN_DIRS; do
+                if [ -x "$d/pnpm" ]; then
+                  echo "Found pnpm at $d/pnpm — adding to PATH"
+                  export PATH="$d:$PATH"
+                  break
+                fi
+              done
+              if command -v pnpm >/dev/null 2>&1; then
+                echo "pnpm now available: $(pnpm --version) at $(command -v pnpm)"
+              else
+                echo "pnpm could not be located — failing build early."
+                ls -la $HOME || true
+                exit 1
+              fi
+            fi
           fi
-          # ensure pnpm store dir exists and is used by pnpm
+          # ensure pnpm binary is executable
+          PNPM_BIN=$(command -v pnpm || true)
+          if [ -n "$PNPM_BIN" ]; then
+            chmod +x "$PNPM_BIN" || true
+          fi
+          # ensure pnpm store dir exists and configure pnpm to use it
           mkdir -p "${{ env.PNPM_STORE_PATH }}"
-          pnpm config set store-dir "${{ env.PNPM_STORE_PATH }}"
+          pnpm config set store-dir "${{ env.PNPM_STORE_PATH }}" || true
+          echo "Using pnpm store at: $(pnpm config get store-dir || echo 'unknown')"
+
+      - name: Debug versions and layout
+        run: |
+          node --version
+          npm --version
+          pnpm --version
+          echo "PWD: $(pwd)"
+          echo "Listing repo root:"
+          ls -la
 
       - name: Install dependencies (pnpm)
         run: pnpm install --no-frozen-lockfile
