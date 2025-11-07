@@ -1,11 +1,22 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+     /* React/JSX Settings */
+    "jsx": "react-jsx",
+    "types": [
+      "vite",
+      "react"
+    ],
+    /* Linting */
     "strict": true,
-    "skipLibCheck": true,
-    "noEmit": true
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tsbuildinfo",
+    "module": "esnext",
+    "moduleResolution": "bundler", 
+    "allowSyntheticDefaultImports": true,
+    "target": "esnext",
+    "isolatedModules": true
   }
 }

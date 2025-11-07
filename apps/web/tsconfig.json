@@ -1,18 +1,5 @@
 {
   "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    /* React/JSX Settings */
-    "jsx": "react-jsx",
-    "types": [
-      "vite",
-      "react"
-    ],
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
-  },
   "include": [
     "src",
     "vite.config.ts"

@@ -1,0 +1,68 @@
+name: Deploy Web App para GitHub Pages
+
+# Permissões necessárias para o deploy no GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Define quando o workflow deve ser executado
+on:
+  push:
+    branches: ["main"]
+  # Permite que você execute o workflow manualmente na aba "Actions"
+  workflow_dispatch:
+
+# Define as variáveis de ambiente globais
+env:
+  NODE_VERSION: 20
+  BUILD_DIR: apps/web/dist
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    # Define o ambiente de deploy (essencial para o Pages)
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: 1. Checkout do código
+        uses: actions/checkout@v4
+        with:
+          # É crucial buscar todo o histórico para o Pages funcionar corretamente
+          fetch-depth: 0 
+
+      - name: 2. Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm' # Habilita cache de dependências NPM
+
+      - name: 3. Instalar Dependências e Turbo
+        # Instala todas as dependências na raiz (incluindo o Turbo)
+        run: npm install
+
+      - name: 4. Executar Build do Frontend com Turbo
+        # O filtro garante que apenas o projeto 'web' seja construído.
+        run: npm run build --filter=web
+        
+      # --- GitHub Pages Deployment Steps ---
+
+      - name: 5. Configurar GitHub Pages
+        # Configura as ações de deploy de Pages
+        uses: actions/configure-pages@v5
+
+      - name: 6. Upload de Artefato para Pages
+        # Faz o upload do diretório de build do Vite (apps/web/dist) como artefato
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # O diretório que o Vite gerou o build
+          path: ${{ env.BUILD_DIR }}
+
+      - name: 7. Deploy para GitHub Pages
+        # Inicia o processo de deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+

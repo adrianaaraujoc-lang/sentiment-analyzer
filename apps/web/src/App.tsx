@@ -91,9 +91,6 @@ const App: React.FC = () => {
 
       <div className="w-full max-w-xl bg-white shadow-2xl rounded-xl p-8 space-y-6 transform hover:scale-[1.01] transition duration-300">
         <h1 className="text-3xl font-extrabold text-gray-800 border-b pb-3 mb-4 flex items-center">
-          <svg className="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944c-3.141 0-6.223.771-8.918 2.04.57.172 1.155.32 1.75.433M12 21.056c-3.141 0-6.223-.771-8.918-2.04.57-.172 1.155-.32 1.75-.433m7.168-14.868L12 21.056m-7.393-5.266A8.001 8.001 0 014 12c0-2.316.764-4.437 2.043-6.143M20 12c0-2.316-.764-4.437-2.043-6.143"></path>
-          </svg>
           Analisador de Sentimentos (Regras)
         </h1>
         
