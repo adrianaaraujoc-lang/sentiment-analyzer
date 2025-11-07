@@ -13,6 +13,14 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "10.20.0"
+  APP_DIR: "apps/web"
+  BUILD_OUT_DIR: "dist"
+  PUBLISH_DIR: "./apps/web/dist"
+  PNPM_STORE_PATH: ${{ github.workspace }}/.pnpm-store
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -23,45 +31,53 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js (v20)
+      - name: Setup Node.js (v$NODE_VERSION)
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
-      # --- GARANTIR PNPM: corepack + action (redundância segura) ---
+      # Cache pnpm store for speed
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PNPM_STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ env.NODE_VERSION }}
+          restore-keys: |
+            pnpm-store-
+
+      # corepack first (ensure pnpm shim)
       - name: Enable corepack and prepare pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@10.20.0 --activate
-          echo "PATH before export: $PATH"
-          which pnpm || true
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          echo "corepack prepared pnpm $(pnpm --version || echo 'pnpm-not-found')"
 
-      - name: Setup pnpm action (adds pnpm to PATH)
+      # pnpm action after corepack to ensure binary in PATH on all runners
+      - name: Setup pnpm action (ensures binary in PATH)
         uses: pnpm/action-setup@v3
         with:
-          version: "10.20.0"
+          version: ${{ env.PNPM_VERSION }}
           run_install: false
 
-      - name: Ensure pnpm is on PATH (debug + fallback)
+      - name: Ensure PNPM on PATH (verify & fallback)
         run: |
-          # Try common locations (pnpm action may install into $HOME/.local/share/pnpm or similar)
+          echo "Checking pnpm availability..."
           if command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm already on PATH: $(pnpm --version)"
+            echo "pnpm found: $(pnpm --version)"
           else
-            echo "pnpm not found on PATH — attempting to add typical install locations to PATH"
+            echo "pnpm not found — attempting to add common locations to PATH"
             export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
             export PATH="$PNPM_HOME:$PATH"
-            echo "Updated PATH: $PATH"
-            if command -v pnpm >/dev/null 2>&1; then
-              echo "pnpm found after PATH update: $(pnpm --version)"
-            else
-              echo "pnpm still missing — failing early"
-              exit 1
-            fi
+            echo "PATH updated: $PATH"
+            command -v pnpm >/dev/null 2>&1 || (echo "pnpm still not found — failing" && exit 1)
+            echo "pnpm now: $(pnpm --version)"
           fi
+          # ensure pnpm store dir exists and is used by pnpm
+          mkdir -p "${{ env.PNPM_STORE_PATH }}"
+          pnpm config set store-dir "${{ env.PNPM_STORE_PATH }}"
 
-      - name: Install dependencies
+      - name: Install dependencies (pnpm)
         run: pnpm install --no-frozen-lockfile
 
       - name: Build workspace (pnpm build)
@@ -69,13 +85,13 @@ jobs:
 
       - name: Confirm build output
         run: |
-          echo "Listando apps/web/dist:"
-          ls -la apps/web/dist || (echo "Diretório apps/web/dist não encontrado" && exit 1)
+          echo "Listing $PUBLISH_DIR"
+          ls -la $PUBLISH_DIR || (echo "Diretório $PUBLISH_DIR não encontrado" && exit 1)
 
       - name: Deploy to GitHub Pages (gh-pages)
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./apps/web/dist
+          publish_dir: ${{ env.PUBLISH_DIR }}
           publish_branch: gh-pages
           keep_files: false
