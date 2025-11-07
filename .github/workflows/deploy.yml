@@ -13,6 +13,6 @@ jobs:
                   node-version: 20
                   cache: pnpm
             - run: pnpm install --frozen-lockfile
-            - run: pnpm build --filter=web
+            - run: pnpm build
             - name: Trigger Render Deploy
               run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"

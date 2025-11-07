@@ -1,4 +1,4 @@
-name: Build & Publish apps/web to GitHub Pages
+name: Build & Deploy to GitHub Pages
 
 on:
   push:
@@ -6,36 +6,45 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository (full history)
+      - name: Checkout repository (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node.js (v20)
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
-      - name: Setup pnpm
+      - name: Setup pnpm (10.20.0)
         uses: pnpm/action-setup@v3
         with:
-          version: 10
+          version: "10.20.0"
           run_install: false
 
-      - name: Install dependencies (root)
+      - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build apps/web
-        working-directory: apps/web
+      - name: Build workspace (pnpm build)
         run: pnpm run build
+
+      - name: Confirm build output
+        run: |
+          echo "Listando apps/web/dist:"
+          ls -la apps/web/dist || (echo "Diretório apps/web/dist não encontrado" && exit 1)
 
       - name: Deploy to GitHub Pages (gh-pages)
         uses: peaceiris/actions-gh-pages@v4
@@ -44,8 +53,3 @@ jobs:
           publish_dir: ./apps/web/dist
           publish_branch: gh-pages
           keep_files: false
-          # if you have a CNAME in apps/web/public or built output, it will be preserved
-
-      - name: Confirm deploy branch exists (debug)
-        run: |
-          git ls-remote --heads origin gh-pages || echo "gh-pages not found remotely"
