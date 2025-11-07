@@ -29,11 +29,37 @@ jobs:
           node-version: "20"
           cache: "pnpm"
 
-      - name: Setup pnpm (10.20.0)
+      # --- GARANTIR PNPM: corepack + action (redundância segura) ---
+      - name: Enable corepack and prepare pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.20.0 --activate
+          echo "PATH before export: $PATH"
+          which pnpm || true
+
+      - name: Setup pnpm action (adds pnpm to PATH)
         uses: pnpm/action-setup@v3
         with:
           version: "10.20.0"
           run_install: false
+
+      - name: Ensure pnpm is on PATH (debug + fallback)
+        run: |
+          # Try common locations (pnpm action may install into $HOME/.local/share/pnpm or similar)
+          if command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm already on PATH: $(pnpm --version)"
+          else
+            echo "pnpm not found on PATH — attempting to add typical install locations to PATH"
+            export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
+            export PATH="$PNPM_HOME:$PATH"
+            echo "Updated PATH: $PATH"
+            if command -v pnpm >/dev/null 2>&1; then
+              echo "pnpm found after PATH update: $(pnpm --version)"
+            else
+              echo "pnpm still missing — failing early"
+              exit 1
+            fi
+          fi
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
