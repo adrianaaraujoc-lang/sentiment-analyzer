@@ -1,4 +1,4 @@
-name: Build & Deploy to GitHub Pages
+name: Docker build (builder) → Publish static to gh-pages
 
 on:
   push:
@@ -6,128 +6,88 @@ on:
       - main
   workflow_dispatch:
 
-concurrency:
-  group: gh-pages-deploy
-  cancel-in-progress: true
-
 permissions:
   contents: write
 
 env:
-  NODE_VERSION: "20"
-  PNPM_VERSION: "10.20.0"
-  APP_DIR: "apps/web"
-  BUILD_OUT_DIR: "dist"
-  PUBLISH_DIR: "./apps/web/dist"
-  PNPM_STORE_PATH: ${{ github.workspace }}/.pnpm-store
+  DOCKERFILE_PATH: ./Dockerfile
+  BUILD_CONTEXT: .
+  BUILD_TARGET: builder
+  IMAGE_NAME: sentiment-analyzer-build
+  CONTAINER_TMP_NAME: sa_build_tmp
+  DIST_PATH_IN_IMAGE: /workspace/apps/web/dist
+  OUT_DIR_REL: out
+  OUT_DIR: ${{ github.workspace }}/out
+  PUBLISH_BRANCH: gh-pages
 
 jobs:
-  build-and-deploy:
+  docker-build-and-publish:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-
-      # Cache pnpm store for speed (optional; usa PNPM_STORE_PATH)
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.PNPM_STORE_PATH }}
-          key: pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ env.NODE_VERSION }}
-          restore-keys: |
-            pnpm-store-
-
-      # 1) corepack: preferido
-      - name: Enable Corepack and prepare pnpm
+      - name: Show configuration
         run: |
-          echo "Enabling corepack and preparing pnpm@${{ env.PNPM_VERSION }}..."
-          corepack enable
-          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate || true
-          echo "After corepack: which pnpm? -> $(command -v pnpm || echo 'not-found')"
-          echo "pnpm --version (if available):"
-          pnpm --version || echo "pnpm not available after corepack"
+          echo "DOCKERFILE_PATH=${{ env.DOCKERFILE_PATH }}"
+          echo "BUILD_TARGET=${{ env.BUILD_TARGET }}"
+          echo "DIST_PATH_IN_IMAGE=${{ env.DIST_PATH_IN_IMAGE }}"
+          echo "OUT_DIR=${{ env.OUT_DIR }}"
 
-      # 2) pnpm action (adds binary to PATH in many runners)
-      - name: Setup pnpm action (ensures pnpm binary in PATH)
-        uses: pnpm/action-setup@v3
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
-
-      # 3) fallback: if pnpm still missing, install globally via npm
-      - name: Ensure pnpm exists, fallback to npm global install if necessary
+      - name: Build Docker image (builder stage)
         run: |
-          if command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm already on PATH: $(pnpm --version)"
+          docker build \
+            --progress=plain \
+            -t "${IMAGE_NAME}:${GITHUB_SHA}" \
+            -f "${DOCKERFILE_PATH}" \
+            --target "${BUILD_TARGET}" \
+            "${BUILD_CONTEXT}"
+
+      - name: Create temporary container from built image
+        id: create_container
+        run: |
+          docker rm -f "${CONTAINER_TMP_NAME}" 2>/dev/null || true
+          CID=$(docker create --name "${CONTAINER_TMP_NAME}" "${IMAGE_NAME}:${GITHUB_SHA}")
+          echo "container_id=$CID" >> $GITHUB_OUTPUT
+
+      - name: Copy build output from container to workspace
+        run: |
+          rm -rf "${{ env.OUT_DIR }}" || true
+          mkdir -p "${{ env.OUT_DIR }}"
+          echo "Tentando copiar: ${CONTAINER_TMP_NAME}:${DIST_PATH_IN_IMAGE} -> ${OUT_DIR}"
+          # copia todo o conteúdo do dist do container para OUT_DIR
+          if docker cp "${CONTAINER_TMP_NAME}:${DIST_PATH_IN_IMAGE}/." "${{ env.OUT_DIR }}/"; then
+            echo "Conteúdo copiado para ${{ env.OUT_DIR }}"
           else
-            echo "pnpm not found after corepack+action. Installing pnpm globally via npm..."
-            npm i -g pnpm@${{ env.PNPM_VERSION }}
-            # some runners install global binaries in /usr/local/bin or ~/.npm-global/bin
-            if command -v pnpm >/dev/null 2>&1; then
-              echo "pnpm installed by npm: $(pnpm --version) at $(command -v pnpm)"
-            else
-              echo "pnpm still not found after npm global install. Trying common locations..."
-              # common global bin locations to add to PATH
-              export POSSIBLE_BIN_DIRS="$HOME/.npm-global/bin $HOME/.local/bin /usr/local/bin /usr/bin"
-              for d in $POSSIBLE_BIN_DIRS; do
-                if [ -x "$d/pnpm" ]; then
-                  echo "Found pnpm at $d/pnpm — adding to PATH"
-                  export PATH="$d:$PATH"
-                  break
-                fi
-              done
-              if command -v pnpm >/dev/null 2>&1; then
-                echo "pnpm now available: $(pnpm --version) at $(command -v pnpm)"
-              else
-                echo "pnpm could not be located — failing build early."
-                ls -la $HOME || true
-                exit 1
-              fi
-            fi
+            echo "Falha ao copiar ${DIST_PATH_IN_IMAGE} do container — debug em container:"
+            docker container ls -a
+            echo "Listando /workspace dentro do container:"
+            docker exec "${CONTAINER_TMP_NAME}" sh -c "ls -la /workspace || true"
+            echo "Listando /workspace/apps dentro do container:"
+            docker exec "${CONTAINER_TMP_NAME}" sh -c "ls -la /workspace/apps || true"
+            echo "Tentando listar DIST_PATH_IN_IMAGE:"
+            docker exec "${CONTAINER_TMP_NAME}" sh -c "ls -la ${DIST_PATH_IN_IMAGE} || true"
+            docker rm -f "${CONTAINER_TMP_NAME}" || true
+            exit 1
           fi
-          # ensure pnpm binary is executable
-          PNPM_BIN=$(command -v pnpm || true)
-          if [ -n "$PNPM_BIN" ]; then
-            chmod +x "$PNPM_BIN" || true
-          fi
-          # ensure pnpm store dir exists and configure pnpm to use it
-          mkdir -p "${{ env.PNPM_STORE_PATH }}"
-          pnpm config set store-dir "${{ env.PNPM_STORE_PATH }}" || true
-          echo "Using pnpm store at: $(pnpm config get store-dir || echo 'unknown')"
+          echo "Conteúdo final em ${{ env.OUT_DIR }}:"
+          ls -la "${{ env.OUT_DIR }}"
 
-      - name: Debug versions and layout
+      - name: Remove temporary container
+        if: always()
+        run: docker rm -f "${CONTAINER_TMP_NAME}" || true
+
+      - name: Confirm publish dir
         run: |
-          node --version
-          npm --version
-          pnpm --version
-          echo "PWD: $(pwd)"
-          echo "Listing repo root:"
-          ls -la
-
-      - name: Install dependencies (pnpm)
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Build workspace (pnpm build)
-        run: pnpm run build
-
-      - name: Confirm build output
-        run: |
-          echo "Listing $PUBLISH_DIR"
-          ls -la $PUBLISH_DIR || (echo "Diretório $PUBLISH_DIR não encontrado" && exit 1)
+          echo "Conteúdo final a ser publicado (root = ${{ env.OUT_DIR }}):"
+          ls -la "${{ env.OUT_DIR }}" || (echo "Diretório ${OUT_DIR} vazio" && exit 1)
 
       - name: Deploy to GitHub Pages (gh-pages)
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ${{ env.PUBLISH_DIR }}
-          publish_branch: gh-pages
+          publish_dir: "${{ env.OUT_DIR }}"
+          publish_branch: ${{ env.PUBLISH_BRANCH }}
           keep_files: false
