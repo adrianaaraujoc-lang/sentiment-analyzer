@@ -1,4 +1,4 @@
-name: Deploy Web App para GitHub Pages
+name: Deploy Web App para GitHub Pages (via Docker Build)
 
 # Permissões necessárias para o deploy no GitHub Pages
 permissions:
@@ -6,17 +6,16 @@ permissions:
   pages: write
   id-token: write
 
-# Define quando o workflow deve ser executado
 on:
   push:
     branches: ["main"]
   # Permite que você execute o workflow manualmente na aba "Actions"
   workflow_dispatch:
 
-# Define as variáveis de ambiente globais
 env:
   NODE_VERSION: 20
-  BUILD_DIR: apps/web/dist
+  DOCKER_IMAGE_NAME: sentiment-analyzer
+  EXTRACTED_DIST_DIR: extracted-dist # Novo diretório para extração
 
 jobs:
   build_and_deploy:
@@ -25,43 +24,55 @@ jobs:
     # Define o ambiente de deploy (essencial para o Pages)
     environment:
       name: github-pages
+      # O deploy para gh-pages será feito automaticamente
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: 1. Checkout do código
         uses: actions/checkout@v4
         with:
-          # É crucial buscar todo o histórico para o Pages funcionar corretamente
           fetch-depth: 0 
 
-      - name: 2. Configurar Node.js
+      - name: 2. Configurar Node.js (necessário para o Docker build stage 1)
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm' # Habilita cache de dependências NPM
+          cache: 'npm'
 
-      - name: 3. Instalar Dependências e Turbo
-        # Instala todas as dependências na raiz (incluindo o Turbo)
+      - name: 3. Instalar Dependências na Raiz (para Turbo e Configuração)
+        # É crucial instalar as dependências para que o Dockerfile encontre o node_modules/turbo
         run: npm install
 
-      - name: 4. Executar Build do Frontend com Turbo
-        # O filtro garante que apenas o projeto 'web' seja construído.
-        run: npm run build --filter=web
-        
+      - name: 4. Build da Imagem Docker
+        # Constrói a imagem Docker, que inclui o build do frontend no estágio 'builder'
+        run: |
+          docker build -t ${{ env.DOCKER_IMAGE_NAME }} .
+          echo "Imagem Docker construída com sucesso."
+          
+      - name: 5. Extrair Artefatos Estáticos da Imagem
+        # A imagem final (runner) contém o conteúdo estático em /usr/share/nginx/html.
+        # 5a. Cria um container temporário a partir da imagem.
+        # 5b. Copia o conteúdo estático para o diretório local '${{ env.EXTRACTED_DIST_DIR }}'.
+        # 5c. Remove o container temporário.
+        run: |
+          CONTAINER_ID=$(docker create ${{ env.DOCKER_IMAGE_NAME }})
+          mkdir -p ${{ env.EXTRACTED_DIST_DIR }}
+          docker cp $CONTAINER_ID:/usr/share/nginx/html/. ${{ env.EXTRACTED_DIST_DIR }}
+          docker rm $CONTAINER_ID
+          echo "Arquivos estáticos extraídos para ${{ env.EXTRACTED_DIST_DIR }}"
+
       # --- GitHub Pages Deployment Steps ---
 
-      - name: 5. Configurar GitHub Pages
-        # Configura as ações de deploy de Pages
+      - name: 6. Configurar GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: 6. Upload de Artefato para Pages
-        # Faz o upload do diretório de build do Vite (apps/web/dist) como artefato
+      - name: 7. Upload de Artefato para Pages
+        # Faz o upload do diretório extraído (EXTRACTED_DIST_DIR)
         uses: actions/upload-pages-artifact@v3
         with:
-          # O diretório que o Vite gerou o build
-          path: ${{ env.BUILD_DIR }}
+          path: ${{ env.EXTRACTED_DIST_DIR }}
 
-      - name: 7. Deploy para GitHub Pages
-        # Inicia o processo de deploy
+      - name: 8. Deploy para GitHub Pages
+        # O deploy é feito automaticamente para o branch configurado (gh-pages)
         id: deployment
         uses: actions/deploy-pages@v4
