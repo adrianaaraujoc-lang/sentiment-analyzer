@@ -71,8 +71,6 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-[Inter]">
       <script src="https://cdn.tailwindcss.com"></script>
       {/* Tailwind configuration for custom font/colors */}
-      {/* CORREÇÃO: Usar dangerouslySetInnerHTML para injetar a configuração do Tailwind como uma string,
-          evitando que o parser JSX tente interpretá-la como sintaxe JavaScript */}
       <script
         dangerouslySetInnerHTML={{
           __html: `

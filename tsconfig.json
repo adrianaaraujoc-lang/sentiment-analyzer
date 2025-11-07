@@ -1,22 +1,35 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-     /* React/JSX Settings */
+    /* Base configuration settings required for the React environment */
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Monorepo and Build Settings */
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    
+    /* Vite/Bundler Mode (Essencial para React/Vite) */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+
+    /* React/JSX Settings */
     "jsx": "react-jsx",
-    "types": [
-      "vite",
-      "react"
-    ],
+    "types": ["vite/client", "react"],
+    
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tsbuildinfo",
-    "module": "esnext",
-    "moduleResolution": "bundler", 
-    "allowSyntheticDefaultImports": true,
-    "target": "esnext",
-    "isolatedModules": true
-  }
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src", "vite.config.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }
