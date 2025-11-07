@@ -7,17 +7,11 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-# Instalar Turbo globalmente para otimizar o build do monorepo
-RUN npm install -g turbo
-
-# Copiar arquivos de configuração do monorepo
-COPY package.json package-lock.json turbo.json ./
-
-# Instalar dependências da raiz
-RUN npm install --ignore-scripts
-
 # Copiar todo o código fonte
 COPY . .
+
+# Instalar Turbo globalmente para otimizar o build do monorepo
+RUN npm install
 
 # Copiar a pasta apps/web, que contém o código do frontend
 WORKDIR /app/apps/web
