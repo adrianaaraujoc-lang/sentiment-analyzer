@@ -1,78 +1,59 @@
-name: Deploy Web App para GitHub Pages (via Docker Build)
+# .github/workflows/deploy.yml
+name: Deploy para GitHub Pages
 
-# Permissões necessárias para o deploy no GitHub Pages
+# Dispara a action sempre que houver um push na branch principal (main ou master)
+on:
+  push:
+    branches:
+      - main  # Altere para 'master' se for a branch principal do seu repositório
+
+# Define permissões para a action poder criar o deploy (necessário a partir de 2024)
 permissions:
   contents: read
   pages: write
   id-token: write
 
-on:
-  push:
-    branches: ["main"]
-  # Permite que você execute o workflow manualmente na aba "Actions"
-  workflow_dispatch:
-
-env:
-  NODE_VERSION: 20
-  DOCKER_IMAGE_NAME: sentiment-analyzer
-  EXTRACTED_DIST_DIR: extracted-dist # Novo diretório para extração
-
 jobs:
-  build_and_deploy:
+  build-and-deploy:
+    # Usa a versão mais recente do Ubuntu
     runs-on: ubuntu-latest
     
-    # Define o ambiente de deploy (essencial para o Pages)
+    # Define o ambiente de deploy (opcional, mas recomendado pelo GitHub Pages)
     environment:
       name: github-pages
-      # O deploy para gh-pages será feito automaticamente
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: 1. Checkout do código
+      # 1. Checkout do Código
+      - name: Checkout do Repositório
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 
-
-      - name: 2. Configurar Node.js (necessário para o Docker build stage 1)
+        
+      # 2. Configurar Node.js (Ambiente de desenvolvimento)
+      - name: Configurar Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '20' # Versão recomendada para projetos Node/TS atuais
           cache: 'npm'
-
-      - name: 3. Instalar Dependências na Raiz (para Turbo e Configuração)
-        # É crucial instalar as dependências para que o Dockerfile encontre o node_modules/turbo
+          
+      # 3. Instalar Dependências NPM
+      - name: Instalar dependências
         run: npm install
 
-      - name: 4. Build da Imagem Docker
-        # Constrói a imagem Docker, que inclui o build do frontend no estágio 'builder'
-        run: |
-          docker build -t ${{ env.DOCKER_IMAGE_NAME }} .
-          echo "Imagem Docker construída com sucesso."
-          
-      - name: 5. Extrair Artefatos Estáticos da Imagem
-        # A imagem final (runner) contém o conteúdo estático em /usr/share/nginx/html.
-        # 5a. Cria um container temporário a partir da imagem.
-        # 5b. Copia o conteúdo estático para o diretório local '${{ env.EXTRACTED_DIST_DIR }}'.
-        # 5c. Remove o container temporário.
-        run: |
-          CONTAINER_ID=$(docker create ${{ env.DOCKER_IMAGE_NAME }})
-          mkdir -p ${{ env.EXTRACTED_DIST_DIR }}
-          docker cp $CONTAINER_ID:/usr/share/nginx/html/. ${{ env.EXTRACTED_DIST_DIR }}
-          docker rm $CONTAINER_ID
-          echo "Arquivos estáticos extraídos para ${{ env.EXTRACTED_DIST_DIR }}"
-
-      # --- GitHub Pages Deployment Steps ---
-
-      - name: 6. Configurar GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: 7. Upload de Artefato para Pages
-        # Faz o upload do diretório extraído (EXTRACTED_DIST_DIR)
+      # 4. Executar o Build (tsc && vite build)
+      # O script 'build' definido no seu package.json (tsc && vite build)
+      - name: Construir o projeto com Vite
+        run: npm run build
+        
+      # 5. Configurar o Artefato de Deploy
+      # Cria o artefato 'github-pages' a partir da pasta 'dist' gerada pelo Vite.
+      - name: Configurar Artefato GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.EXTRACTED_DIST_DIR }}
+          # A pasta de saída do seu build (definida no vite.config.ts)
+          path: './dist' 
 
-      - name: 8. Deploy para GitHub Pages
-        # O deploy é feito automaticamente para o branch configurado (gh-pages)
+      # 6. Deploy no GitHub Pages
+      - name: Fazer Deploy no GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        # Não precisa de 'with' pois o 'upload-pages-artifact' já configurou o artefato.

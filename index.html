@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analisador de Sentimentos Simples</title>
+</head>
+<body>
+  <div id="app">
+    <h1>Analisador de Sentimentos 🤖</h1>
+    <p>Digite uma frase ou texto curto para classificação (Positivo, Negativo, Neutro).</p>
+
+    <textarea id="text-input" placeholder="Ex: 'O atendimento foi péssimo, mas o lugar é ótimo.'"></textarea>
+    
+    <button id="analyze-button">Analisar Sentimento</button>
+    
+    <div id="result-container">
+      <h2>Resultado:</h2>
+      <p id="sentiment-result">Aguardando análise...</p>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

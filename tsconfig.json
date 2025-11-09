@@ -1,35 +1,56 @@
 {
-  "extends": "../../tsconfig.json",
+  "include": [
+    "vite.config.ts",
+    "src/**/*"
+  ],
+  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-    /* Base configuration settings required for the React environment */
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-
-    /* Monorepo and Build Settings */
-    "composite": true,
-    "outDir": "dist",
-    "rootDir": ".",
-    
-    /* Vite/Bundler Mode (Essencial para React/Vite) */
-    "moduleResolution": "bundler",
+    // File Layout
+    //"baseUrl": "./",
+    //"rootDir": "./src",
+    "outDir": "./dist",
+    // Environment Settings
+    // See also https://aka.ms/tsconfig/module
+    "module": "nodenext",
+    "target": "esnext",
+    "types": [
+      "node",
+      "vite/client"
+    ],
+    // For nodejs:
+    "lib": [
+      "esnext",
+      "dom"
+    ],
+    // "types": ["node"],
+    // and npm install -D @types/node
+    // Other Outputs
+    "allowArbitraryExtensions": true,
     "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
+    "moduleResolution": "nodenext",
     "noEmit": true,
-
-    /* React/JSX Settings */
-    "jsx": "react-jsx",
-    "types": ["vite/client", "react"],
-    
-    /* Linting */
-    "strict": true,
+    "emitDeclarationOnly": true,
+    "allowJs": true,
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    // Style Options
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
-  },
-  "include": ["src", "vite.config.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    // Recommended Options
+    "strict": true,
+    "jsx": "react-jsx",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+  }
 }
